@@ -25,24 +25,27 @@ jobs:
       - name: Build React app
         run: npm run build
 
-      - name: Deploy to EC2 via SSH
+      - name: Deploy build folder to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "build/*"
+          source: "build/"
           target: "/tmp/react-deploy"
 
-      - name: Move build to Apache folder & restart
+      - name: Move build to Apache folder & restart Apache
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Pull latest code (optional if using GitHub Actions for builds)
+            cd /home/ubuntu/AWS_TuTorial/react-demo
             git pull origin main
-            # Install Apache only if not already installed
+
+            # Install Apache if not installed
             if ! command -v apache2ctl >/dev/null 2>&1; then
               sudo apt update
               sudo apt install -y apache2
@@ -50,11 +53,13 @@ jobs:
               sudo systemctl start apache2
             fi
 
-            # Ensure the folder exists
+            # Prepare web root
             sudo mkdir -p /var/www/html
+            sudo chown -R $USER:$USER /var/www/html
+            sudo chmod -R 755 /var/www/html
 
-            # Deploy build using rsync
+            # Copy the contents of build/ into /var/www/html/
             sudo rsync -a --delete /tmp/react-deploy/ /var/www/html/
 
-            # Reload Apache to serve new files
+            # Reload Apache
             sudo systemctl reload apache2
