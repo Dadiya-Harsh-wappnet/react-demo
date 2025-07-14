@@ -40,7 +40,17 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            sudo rm -rf /var/www/html/*
-            sudo cp -r /tmp/react-deploy/* /var/www/html/
-            sudo systemctl restart apache2
+        script: |
+          # Install Apache once (skip if already installed)
+          if ! dpkg -l apache2 >/dev/null 2>&1; then
+            sudo apt update
+            sudo apt install -y apache2
+            sudo systemctl enable apache2
+            sudo systemctl start apache2
+          fi
+
+          # Deploy build atomically using rsync
+          sudo rsync -a --delete /tmp/react-deploy/ /var/www/html/
+
+          # Soft reload Apache (no downtime)
+          sudo systemctl reload apache2
