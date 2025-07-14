@@ -41,6 +41,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            git pull origin main
             # Install Apache only if not already installed
             if ! command -v apache2ctl >/dev/null 2>&1; then
               sudo apt update
